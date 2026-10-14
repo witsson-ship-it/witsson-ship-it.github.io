@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "com.racha.combustivel",
+        "sha256_cert_fingerprints": ["41:6E:6C:4B:E2:58:39:DE:9E:2C:4A:63:73:41:55:3B:D7:B4:A0:3F:2A:D6:DD:E8:A3:96:62:C7:9F:6C:E4:3A"]
+      }
+    }]
