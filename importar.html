@@ -2,23 +2,23 @@
 <html lang="pt-BR"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Importar dados - Racha Combustível</title>
 <style>body{margin:0;background:#0b1220;color:#fff;font-family:system-ui,sans-serif;display:flex;min-height:100vh;align-items:center;justify-content:center}main{max-width:340px;padding:24px;text-align:center}h1{font-size:22px}p{color:#94a3b8;line-height:1.4}label{display:block;background:#16a34a;color:#fff;font-weight:700;padding:16px;border-radius:14px;margin:20px 0}input{display:none}#msg{font-weight:700;margin-top:16px}</style></head>
 <body><main><h1>Importar dados</h1><p>Escolha o arquivo <b>racha-dados.json</b> que você recebeu. Os dados ficam só no seu celular.</p>
-<label>Escolher arquivo<input id="f" type="file"/></label><div id="msg"></div>
+<label>Escolher arquivo<input id="f" type="file"/></label><p>ou cole o texto dos dados aqui:</p><textarea id="t" rows="5" placeholder="Cole aqui" style="width:100%;box-sizing:border-box;border-radius:12px;padding:10px;background:#16213a;color:#fff;border:1px solid #334155"></textarea><button id="b" style="width:100%;margin-top:12px;background:#2563eb;color:#fff;font-weight:700;padding:14px;border:0;border-radius:14px;font-size:16px">Importar texto colado</button><div id="msg"></div>
 <script>
 var msg=document.getElementById("msg");
+function go(text){
+ try{
+  var d=JSON.parse(text.trim());
+  if(!d||!d.Ride||!d.UserConfig){throw new Error("dados errados, copie a mensagem inteira")}
+  var old=null;try{old=JSON.parse(localStorage.getItem("racha_db_v1")||"null")}catch(x){}
+  if(old&&old.Ride&&old.Ride.length>0&&!confirm("Já existem "+old.Ride.length+" caronas neste celular. Trocar pelos dados novos ("+d.Ride.length+" caronas)?"))return;
+  localStorage.setItem("racha_db_v1",JSON.stringify(d));
+  msg.style.color="#34d399";msg.textContent="Pronto! "+d.Ride.length+" caronas, "+(d.FuelRefuel||[]).length+" abastecimentos importados. Abrindo o app...";
+  setTimeout(function(){location.href="/"},1800);
+ }catch(err){msg.style.color="#f87171";msg.textContent="Não deu certo: "+err.message}
+}
 document.getElementById("f").addEventListener("change",function(e){
  var file=e.target.files[0];if(!file)return;
- var r=new FileReader();
- r.onload=function(){
-  try{
-   var d=JSON.parse(r.result);
-   if(!d||!d.Ride||!d.UserConfig){throw new Error("arquivo errado")}
-   var old=null;try{old=JSON.parse(localStorage.getItem("racha_db_v1")||"null")}catch(x){}
-   if(old&&old.Ride&&old.Ride.length>0&&!confirm("Já existem "+old.Ride.length+" caronas neste celular. Trocar pelos dados do arquivo ("+d.Ride.length+" caronas)?"))return;
-   localStorage.setItem("racha_db_v1",JSON.stringify(d));
-   msg.style.color="#34d399";msg.textContent="Pronto! "+d.Ride.length+" caronas, "+(d.FuelRefuel||[]).length+" abastecimentos importados. Abrindo o app...";
-   setTimeout(function(){location.href="/"},1800);
-  }catch(err){msg.style.color="#f87171";msg.textContent="Não deu certo: "+err.message}
- };
- r.readAsText(file);
+ var r=new FileReader();r.onload=function(){go(r.result)};r.readAsText(file);
 });
+document.getElementById("b").addEventListener("click",function(){go(document.getElementById("t").value)});
 </script></main></body></html>
