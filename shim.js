@@ -1,9 +1,22 @@
 (function(){
 var APP="6a752f1eb41dba10c59dbb33",KEY="racha_db_v1",SEED="racha_seeded_v1";
-var db=null;try{if(!localStorage.getItem("base44_access_token"))localStorage.setItem("base44_access_token","local-copy")}catch(e){}
-function load(){if(db)return db;try{db=JSON.parse(localStorage.getItem(KEY)||"null")}catch(e){}return db}
-function save(){localStorage.setItem(KEY,JSON.stringify(db))}
-try{var hm=location.hash.match(/^#import=(.+)$/);if(hm){var bin=atob(decodeURIComponent(hm[1]).replace(/-/g,"+").replace(/_/g,"/"));var txt=decodeURIComponent(escape(bin));var imp=JSON.parse(txt);if(imp&&imp.Ride){db=imp;save();}history.replaceState(null,"",location.pathname)}}catch(e){console.error("import",e)}
+var db=null,lastRaw=null;try{if(!localStorage.getItem("base44_access_token"))localStorage.setItem("base44_access_token","local-copy")}catch(e){}
+function load(){if(db)return db;try{lastRaw=localStorage.getItem(KEY);db=JSON.parse(lastRaw||"null")}catch(e){}return db}
+function guard(){if(localStorage.getItem(KEY)!==lastRaw)throw Error("Outra aba alterou os dados. Reabra esta aba antes de salvar.")}
+function save(){guard();const raw=JSON.stringify(db);localStorage.setItem(KEY,raw);lastRaw=raw;window.dispatchEvent(new Event("racha:db-saved"))}
+/* URL database import intentionally disabled in this candidate. */
+window.RachaLocalBridge={
+ snapshot:function(){return JSON.parse(JSON.stringify(load()))},
+ applyCommands:function(commands){
+  if(!Array.isArray(commands)||commands.length>100)throw Error('Lista inválida');
+  load();guard();const before=JSON.stringify(load()),next=JSON.parse(before),results={};
+  for(const c of commands)results[c.id]=RachaCommandCore.apply(next,c);
+  // Persist backup first. If either write fails, do not change the live closure.
+  localStorage.setItem('racha_backup_before_command_v2',before);
+  const raw=JSON.stringify(next);localStorage.setItem(KEY,raw);lastRaw=raw;db=next;
+  window.dispatchEvent(new Event('racha:db-saved'));return results;
+ }
+};
 var ready=(async function(){
   if(load())return;
   db={UserConfig:[{id:rid(),prices_single:15,prices_full:30,defaultDistance:60.9,carConsumption:13,fuelPrice:6.59,autoPilot:false,autoPilotMode:"full",loanPin:"123",lastAutoRun:null,currentMileage:0,maintenanceRatePerKm:0,useRealConsumption:true,created_date:now(),updated_date:now()}]};save();
@@ -11,8 +24,9 @@ var ready=(async function(){
 function rid(){return Array.from(crypto.getRandomValues(new Uint8Array(12))).map(function(b){return b.toString(16).padStart(2,"0")}).join("")}
 function now(){return new Date().toISOString().replace("Z","000")}
 function match(rec,q){for(var k in q){if(rec[k]!==q[k])return false}return true}
-async function handle(method,url,body){
-  await ready;
+async function handle(method,url,body){if(!navigator.locks)throw Error("Atualize o navegador antes de alterar os dados");return navigator.locks.request("racha-db-exclusive-v2",()=>handleInternal(method,url,body))}
+async function handleInternal(method,url,body){
+  await ready;guard();
   var u=new URL(url,location.origin),p=u.pathname;
   var m=p.match(/\/api\/apps\/[^/]+\/entities\/([^/]+)(?:\/([^/]+))?$/);
   if(m){
