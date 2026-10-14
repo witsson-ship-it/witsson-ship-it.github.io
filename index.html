@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0b1220"/>
   <style>
 html,body{margin:0;background:#0b1220}
-#boot{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#0b1220;color:#f1f5f9;font-family:Inter,system-ui,sans-serif}
+#boot{z-index:99999;transition:opacity .6s ease;position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#0b1220;color:#f1f5f9;font-family:Inter,system-ui,sans-serif}
 #boot .boot-content{width:100%;max-width:540px;text-align:center;padding:24px;box-sizing:border-box;transform:translateY(-12px)}
 #boot .boot-gauge{position:relative;width:280px;height:206px;margin:0 auto 25px}
 #boot .boot-gauge:before{content:"";position:absolute;inset:-48px;background:radial-gradient(ellipse,rgba(52,211,153,.09),transparent 68%);pointer-events:none}
@@ -19,6 +19,7 @@ html,body{margin:0;background:#0b1220}
 #boot h1{margin:0;font-size:clamp(21px,5.5vw,28px);font-weight:700;letter-spacing:-.025em}
 #boot .boot-tagline{margin:16px 0 0;font-size:15px;color:#8496ac}
 #boot .boot-status{margin:68px 0 0;font-size:12px;color:#667f8f;animation:boot-breathe 1.8s ease-in-out infinite alternate}
+#boot.boot-out{opacity:0;pointer-events:none}
 @keyframes boot-gauge{to{stroke-dashoffset:0}}
 @keyframes boot-logo{from{opacity:0;transform:translateY(4px) scale(.96)}to{opacity:1;transform:none}}
 @keyframes boot-breathe{to{opacity:.55}}
@@ -40,7 +41,8 @@ html,body{margin:0;background:#0b1220}
   
  </head>
  <body>
-  <div id="root"><div id="boot" role="status" aria-label="Abrindo Racha Combustível"><div class="boot-content">
+  <div id="root"></div>
+  <div id="boot" role="status" aria-label="Abrindo Racha Combustível"><div class="boot-content">
     <div class="boot-gauge" aria-hidden="true">
       <svg viewBox="0 0 280 206">
         <path class="boot-track" d="M 32 94 A 119 119 0 0 1 248 94"/>
@@ -52,6 +54,7 @@ html,body{margin:0;background:#0b1220}
     <h1>Racha Combustível</h1>
     <p class="boot-tagline">Cada trajeto conta.</p>
     <p class="boot-status">Preparando seu painel</p>
-  </div></div></div>
+  </div></div>
+  <script>setTimeout(function(){var b=document.getElementById("boot");if(!b)return;b.classList.add("boot-out");setTimeout(function(){b.remove()},700)},1900)</script>
  </body>
 </html>
