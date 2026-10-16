@@ -30,3 +30,21 @@
 .rk-backdrop{position:fixed;inset:0;z-index:150}
 .rk-menu{position:fixed;top:104px;right:16px;width:min(300px,86vw);background:#101a2e;border:1px solid rgba(255,255,255,.09);border-radius:20px;box-shadow:0 18px 44px rgba(0,0,0,.55);padding:10px;box-sizing:border-box;z-index:160;animation:rk-pop .18s ease-out}
 @keyframes rk-pop{from{opacity:0;transform:translateY(-6px) scale(.98)}to{opacity:1;transform:none}}
+
+/* GPS tab dark aesthetic (2026-10-16) - hand-added utilities used by app.js */
+.bg-\[\#1a2134\]{background-color:#1a2134}
+.text-slate-100{color:#f1f5f9}
+.placeholder\:text-slate-500::placeholder{color:#64748b}
+.placeholder\:text-base::placeholder{font-size:1rem;line-height:1.5rem}
+.placeholder\:font-medium::placeholder{font-weight:500}
+.border-emerald-500\/25{border-color:rgb(16 185 129/.25)}
+.hover\:bg-emerald-500\/20:hover{background-color:rgb(16 185 129/.2)}
+.hover\:border-emerald-500\/40:hover{border-color:rgb(16 185 129/.4)}
+.bg-blue-500\/10{background-color:rgb(59 130 246/.1)}
+.border-blue-500\/20{border-color:rgb(59 130 246/.2)}
+.text-purple-400{color:#c084fc}
+.text-red-400{color:#f87171}
+.text-orange-400{color:#fb923c}
+.hover\:bg-white\/20:hover{background-color:rgb(255 255 255/.2)}
+.bg-red-500\/10{background-color:rgb(239 68 68/.1)}
+.border-red-500\/25{border-color:rgb(239 68 68/.25)}
