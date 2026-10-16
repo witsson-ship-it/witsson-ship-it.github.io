@@ -45,6 +45,18 @@ async function handleInternal(method,url,body){
     if(method==="GET"){var r=arr.find(function(x){return x.id===id});return r?[200,r]:[404,{message:"Not found"}]}
     if(method==="POST"&&id==="bulk"){var res=(body||[]).map(function(b){var r=Object.assign({},b,{id:rid(),created_date:now(),updated_date:now(),is_sample:false});arr.push(r);return r});save();return [200,res]}
     if(method==="POST"){var r=Object.assign({},body,{id:rid(),created_date:now(),updated_date:now(),is_sample:false});arr.push(r);save();return [200,r]}
+    if(method==="PUT"&&id==="bulk"){
+      var items=Array.isArray(body)?body:[],updated=[];
+      for(var bi=0;bi<items.length;bi++){
+        var it=items[bi];if(!it||!it.id)continue;
+        var ii=arr.findIndex(function(x){return x.id===it.id});
+        if(ii<0)continue;
+        var patch=Object.assign({},it);delete patch.id;
+        arr[ii]=Object.assign({},arr[ii],patch,{updated_date:now()});
+        updated.push(arr[ii]);
+      }
+      save();return [200,updated];
+    }
     if(method==="PUT"){var i=arr.findIndex(function(x){return x.id===id});if(i<0)return [404,{message:"Not found"}];arr[i]=Object.assign({},arr[i],body,{updated_date:now()});save();return [200,arr[i]]}
     if(method==="DELETE"&&id){var n=arr.length;db[ent]=arr.filter(function(x){return x.id!==id});save();return [200,{success:db[ent].length<n}]}
     return [200,{}];
