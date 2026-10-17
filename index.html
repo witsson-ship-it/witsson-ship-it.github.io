@@ -3,7 +3,7 @@
  <head>
   <script>
 (function(){
-  var BUILD="20261017-up1";
+  var BUILD="20261017-up2";
   try{
     fetch("/version.json",{cache:"no-store"}).then(function(r){return r.ok?r.json():null}).then(function(j){
       if(j&&j.v&&j.v!==BUILD){
@@ -28,7 +28,7 @@ html,body{margin:0;background:#0b1220}
 #boot .boot-gauge:before{content:"";position:absolute;inset:-48px;background:radial-gradient(ellipse,rgba(52,211,153,.09),transparent 68%);pointer-events:none}
 #boot svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
 #boot .boot-track{fill:none;stroke:#1d303b;stroke-width:9;stroke-linecap:round}
-#boot .boot-fill{fill:none;stroke:#34d399;stroke-width:9;stroke-linecap:round;stroke-dasharray:100;stroke-dashoffset:100;animation:boot-gauge 1.7s cubic-bezier(.2,.65,.3,1) forwards}
+#boot .boot-fill{fill:none;stroke:#34d399;stroke-width:9;stroke-linecap:round;stroke-dasharray:100;stroke-dashoffset:100;animation:boot-gauge 1s cubic-bezier(.2,.65,.3,1) forwards}
 #boot .boot-ticks{fill:none;stroke:#475e6c;stroke-width:1.5}
 #boot img{position:absolute;width:94px;height:94px;left:93px;top:94px;animation:boot-logo .45s ease-out both}
 #boot h1{margin:0;font-size:clamp(21px,5.5vw,28px);font-weight:700;letter-spacing:-.025em}
@@ -70,6 +70,29 @@ html,body{margin:0;background:#0b1220}
     <p class="boot-tagline">Cada trajeto conta.</p>
     <p class="boot-status">Preparando seu painel</p>
   </div></div>
-  <script>setTimeout(function(){var b=document.getElementById("boot");if(!b)return;b.classList.add("boot-out");setTimeout(function(){b.remove()},700)},1900)</script>
+  <script>
+(function(){
+  var MIN=1000,MAX=8000,t0=Date.now(),ok=0;
+  function ready(){
+    var r=document.getElementById("root");
+    if(!r||!r.hasChildNodes())return false;
+    var t=(r.textContent||"").replace(/\s+/g,"");
+    if(t.length<10)return false;
+    if(t.indexOf("Acarregarsistema")>=0)return false;
+    return true;
+  }
+  function hide(){
+    var b=document.getElementById("boot");
+    if(!b||b.classList.contains("boot-out"))return;
+    b.classList.add("boot-out");
+    setTimeout(function(){b.remove()},700);
+  }
+  var iv=setInterval(function(){
+    var e=Date.now()-t0;
+    if(e>=MAX){clearInterval(iv);hide();return}
+    if(e>=MIN&&ready()){ok++;if(ok>=2){clearInterval(iv);hide()}}else{ok=0}
+  },50);
+})();
+</script>
  </body>
 </html>
