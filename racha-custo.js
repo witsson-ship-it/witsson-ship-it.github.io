@@ -19,7 +19,8 @@ function injectStyle(){
   if(document.getElementById("rc-style"))return;
   var st=document.createElement("style");st.id="rc-style";
   st.textContent=[
- "#rc-overlay{position:fixed;inset:0;z-index:40;background:#0b1220;overflow-y:auto;padding:16px 14px 150px;font-family:Inter,system-ui,sans-serif}",
+ "#rc-overlay{position:fixed;inset:0;z-index:40;background:#0b1220;overflow-y:auto;padding:70px 14px 150px;font-family:Inter,system-ui,sans-serif;overscroll-behavior:contain}",
+ "#rc-overlay .rc-mask{position:fixed;top:0;left:0;right:0;height:70px;background:#0b1220;z-index:2}",
  "#rc-overlay .rc-card{background:#101b30;border:1px solid #1e293b;border-radius:18px;padding:16px;margin:0 auto 14px;max-width:560px}",
  "#rc-overlay h2{color:#f1f5f9;font-size:19px;font-weight:800;margin:0;letter-spacing:-.02em}",
  "#rc-overlay .rc-sub{color:#8496ac;font-size:12px;margin:3px auto 14px;max-width:560px}",
@@ -47,7 +48,7 @@ function render(){
   var gasS=r2(KM_SEM*ck), pnS=r2(KM_SEM*PNEU_JOGO/PNEU_KM), totS=r2(gasS+pnS);
   var fp=fuelPrice.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
   var cks=ck.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
-  return '<div style="max-width:560px;margin:0 auto"><h2>Meu custo por dia</h2><p class="rc-sub">Só pra você · as cobranças R$15/R$30 não mudam</p></div>'
+  return '<div class="rc-mask"></div><div style="max-width:560px;margin:0 auto"><h2>Meu custo por dia</h2><p class="rc-sub">Só pra você · as cobranças R$15/R$30 não mudam</p></div>'
   +'<div class="rc-card"><div class="rc-h">Dia COM passageiro ('+String(KM_COM).replace(".",",")+' km)</div>'
   +'<div class="rc-row"><div><div class="rc-lbl">Gasolina</div><div class="rc-det">'+String(KM_COM).replace(".",",")+' km × '+cks+'/km · 11,4 km/l · '+fp+' no posto (ANP)</div></div><div class="rc-val">'+brl(gasC)+'</div></div>'
   +'<div class="rc-row"><div><div class="rc-lbl">Pneus</div><div class="rc-det">jogo R$ 1.039,60 · 50 mil km estimados*</div></div><div class="rc-val">'+brl(pnC)+'</div></div>'
