@@ -8,7 +8,7 @@ nav.fixed.bottom-0{display:none!important}
 header h1{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;font-size:17px!important}
 header h1+p{display:none!important}
 header .flex.items-center.gap-3.min-w-0>div:first-child{display:none!important}
-header .flex.gap-1\\.5.shrink-0{margin-right:50px}
+header .shrink-0:last-child{margin-right:0!important}
 [id$=overlay]{padding-top:70px!important}
 #rm-dot{position:fixed;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;background:rgba(255,255,255,.35);border:2px solid #fff;z-index:99999;pointer-events:none;transform:scale(.4);opacity:0;transition:all .18s}
 #rm-dot.on{transform:scale(1);opacity:1}
@@ -42,10 +42,12 @@ function init(){
  
  if(V=='d'){
   var bg=el('<div id="rm-back"></div>'),dr=el('<div id="rm-drawer"></div>');
-  var bu=el('<div id="rm-burger"><svg width="24" height="24" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></div>');
-  document.body.append(bg,dr,bu);
+  var bu=el('<button type="button" aria-label="Abrir menu" id="rm-burger"><svg width="24" height="24" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>');
+  document.body.append(bg,dr);
+  function placeBurger(){var actions=document.querySelector('header .shrink-0:last-child');if(actions && bu.parentNode!==actions)actions.appendChild(bu)}
+  placeBurger();new MutationObserver(placeBurger).observe(document.querySelector('#root'),{childList:true,subtree:true});
   function render(){dr.innerHTML='<div class="h">Racha Combustível<small>abasteceu, rachou, rodou</small></div>'+items.map(function(x){return '<div class="it'+(x.label==cur?' act':'')+'" data-l="'+x.label+'"><span style="display:flex;transform:scale(.9)">'+x.svg+'</span>'+x.label+'</div>'}).join('')}
-  bu.style.left='auto';bu.style.right='14px';bu.style.top='38px';bu.style.width='42px';bu.style.height='42px';dr.style.left='auto';dr.style.right='0';dr.style.transform='translateX(102%)';dr.style.boxShadow='-6px 0 24px rgba(0,0,0,.5)';var st=document.createElement('style');st.textContent='#rm-drawer.on{transform:none!important}';document.head.appendChild(st);
+  bu.style.cssText='position:static;flex-shrink:0;width:38px;align-self:stretch;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.05);color:#cbd5e1;display:flex;align-items:center;justify-content:center';dr.style.left='auto';dr.style.right='0';dr.style.transform='translateX(102%)';dr.style.boxShadow='-6px 0 24px rgba(0,0,0,.5)';var st=document.createElement('style');st.textContent='#rm-drawer.on{transform:none!important}';document.head.appendChild(st);
   window.openM=function(){render();bg.classList.add('on');dr.classList.add('on')};
   window.closeM=function(){bg.classList.remove('on');dr.classList.remove('on')};
   bg.onclick=closeM;bu.onclick=openM;
