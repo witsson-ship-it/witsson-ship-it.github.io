@@ -95,7 +95,7 @@ const enc=new TextEncoder(),b64=b=>btoa(String.fromCharCode(...new Uint8Array(b)
 function open(){return new Promise((resolve,reject)=>{const r=indexedDB.open('racha_device_keys_v2',1);r.onupgradeneeded=()=>r.result.createObjectStore('keys');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
 async function keys(){const db=await open();try{let saved=await new Promise((r,j)=>{const q=db.transaction('keys').objectStore('keys').get('device');q.onsuccess=()=>r(q.result);q.onerror=()=>j(q.error)});if(saved)return saved;const pair=await crypto.subtle.generateKey({name:'ECDSA',namedCurve:'P-256'},false,['sign','verify']);await new Promise((r,j)=>{const tx=db.transaction('keys','readwrite');tx.objectStore('keys').add(pair,'device');tx.oncomplete=r;tx.onerror=()=>j(tx.error)});return pair}finally{db.close()}}
 function make(pair){return{async send(path,x){
- if(!['/pair/start','/pair/status','/sync'].includes(path))throw Error('wrong-path');
+ if(!['/pair/start','/pair/status','/sync','/snapshot'].includes(path))throw Error('wrong-path');
  const body=JSON.stringify(x),ts=String(Date.now()),nonce=b64(crypto.getRandomValues(new Uint8Array(24))),hash=b64(await crypto.subtle.digest('SHA-256',enc.encode(body))),sig=b64(await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},pair.privateKey,enc.encode(['POST',path,ts,nonce,hash].join('\n'))));
  const r=await fetch('https://racha-sync-test.witsson.workers.dev'+path,{method:'POST',credentials:'omit',headers:{'Content-Type':'application/json','x-racha-time':ts,'x-racha-nonce':nonce,'x-racha-signature':sig},body,signal:AbortSignal.timeout(20000)});
  const v=await r.json();if(!r.ok)throw Error(v.error||'pairing-failed');return v;
@@ -113,8 +113,23 @@ root.RachaOwnerPairing={
 let expected=null,verified=null;
 function show(){
  const panel=document.getElementById('racha-integration');if(!panel)return;
- panel.innerHTML='<summary>☁ Planilha privada</summary><p class="setup-note">Seus dados continuam neste celular até você conectar.</p><section><h3>1. Guardar seus dados</h3><p>Salve uma cópia antes de conectar. Nada é apagado ou substituído.</p><button id="setup-download">Salvar backup</button><p id="setup-backup-result" role="status">Backup ainda não conferido.</p><label class="setup-file">Conferir arquivo salvo<span id="setup-filename">Nenhum arquivo escolhido</span><input id="setup-file" type="file" accept=".json,application/json"></label><small>O arquivo é conferido neste aparelho. Não é enviado para a planilha.</small></section><section><h3>2. Conectar este celular</h3><p>Depois do backup, este aparelho poderá enviar caronas e receber comandos ao abrir o app com internet.</p><button id="setup-pair" disabled>Conectar celular</button><p id="setup-pair-result" role="status">Primeiro salve e confira o backup.</p></section><small>Ida R$15 · Volta R$15 · Diária R$30.<br>Sem internet, seus registros continuam no celular.</small>';
+ panel.innerHTML='<summary>☁ Planilha privada</summary><p class="setup-note">Seus dados continuam neste celular até você conectar.</p><section><h3>1. Guardar seus dados</h3><p>Salve uma cópia antes de conectar. Nada é apagado ou substituído.</p><button id="setup-download">Salvar backup</button><p id="setup-backup-result" role="status">Backup ainda não conferido.</p><p id="setup-backup-age" class="setup-note"></p><label class="setup-file">Conferir arquivo salvo<span id="setup-filename">Nenhum arquivo escolhido</span><input id="setup-file" type="file" accept=".json,application/json"></label><small>O arquivo é conferido neste aparelho. Não é enviado para a planilha.</small></section><section><h3>2. Conectar este celular</h3><p>Depois do backup, este aparelho poderá enviar caronas e receber comandos ao abrir o app com internet.</p><button id="setup-pair" disabled>Conectar celular</button><p id="setup-pair-result" role="status">Primeiro salve e confira o backup.</p></section><small>Ida R$15 · Volta R$15 · Diária R$30.<br>Sem internet, seus registros continuam no celular.</small>';
  panel.querySelectorAll('button').forEach(b=>b.type='button');
+ /* P5: estado conectado + idade do backup + restaurar da planilha */
+ try{
+  const meta=JSON.parse(localStorage.getItem('racha_sync_meta_v2')||'null');
+  const st=Number(localStorage.getItem('racha_backup_ok_at')||0),age=document.getElementById('setup-backup-age');
+  if(age)age.textContent=(!st||Date.now()-st>604800000)?'⚠ Backup antigo ou ainda não conferido neste aparelho. Salve e confira um novo backup.':'Último backup conferido neste aparelho: '+new Date(st).toLocaleDateString('pt-BR')+'.';
+  if(meta&&meta.mode==='paired'){
+   const pb=document.getElementById('setup-pair');pb.disabled=false;pb.textContent='Sincronizar';pb.onclick=()=>location.reload();
+   document.getElementById('setup-pair-result').textContent='Este aparelho está conectado.';
+   const localRides=(JSON.parse(localStorage.getItem('racha_db_v1')||'{}').Ride||[]).filter(r=>r&&r.category==='fuel');
+   if(localRides.length===0&&window.RachaSheetRestore){
+    const sec=document.createElement('section');sec.innerHTML='<h3>Recuperar caronas da planilha</h3><p>Suas caronas de combustível têm uma cópia na planilha privada.</p><button id="sheet-restore-check" type="button">Verificar cópia na planilha</button><p id="sheet-restore-result" role="status"></p>';panel.appendChild(sec);
+    document.getElementById('sheet-restore-check').onclick=()=>RachaSheetRestore.checkAndOffer();
+   }
+  }
+ }catch(e){console.error('setup-extras',e)}
  const style=document.createElement('style');style.textContent='#racha-integration section{padding:12px 0;border-top:1px solid #29594c}#racha-integration h3{font-size:15px;margin:0 0 8px}#racha-integration .setup-note{font-size:12px;color:#a7c8bc}#racha-integration button:disabled{background:#24463c;color:#97b5aa}#racha-integration .setup-file{display:block;padding:12px;border:1px dashed #5c8c7c;border-radius:9px;cursor:pointer}#setup-file{position:absolute;width:1px;height:1px;opacity:0}#setup-filename{display:block;font-size:12px;margin-top:6px;color:#a7c8bc;overflow-wrap:anywhere}#racha-integration small{line-height:1.5}';document.head.appendChild(style);
  const result=t=>document.getElementById('setup-backup-result').textContent=t;
  document.getElementById('setup-download').onclick=async()=>{
@@ -140,7 +155,7 @@ function show(){
    const f=e.target.files[0];document.getElementById('setup-filename').textContent=f?.name||'Nenhum arquivo escolhido';if(!f||!expected)throw Error('save-first');if(f.size>10000000)throw Error('size');
    const raw=await f.text(),hash=await RachaBackupCore.digest(raw),current=await RachaBackupCore.digest(localStorage.getItem('racha_db_v1'));
    if(hash!==expected.hash||hash!==current)throw Error('mismatch');verified={hash,...RachaBackupCore.inspect(raw)};
-   result('Backup conferido neste aparelho: '+verified.rides+' registro(s). Nenhum dado enviado.');
+   result('Backup conferido neste aparelho: '+verified.rides+' registro(s). Nenhum dado enviado.');try{localStorage.setItem('racha_backup_ok_at',String(Date.now()))}catch(e){}
    document.getElementById('setup-pair-result').textContent='Backup conferido. A conexão de teste está desligada; aguarde a revisão antes de ativar.';
    // This preview cannot pair. Final enablement requires a provisioned secure pairing flow.
    document.getElementById('setup-pair').disabled=!window.RachaOwnerPairing;
@@ -148,7 +163,7 @@ function show(){
   }catch{verified=null;document.getElementById('setup-pair').disabled=true;result('Esse arquivo não corresponde aos dados atuais. Salve um novo backup.');document.getElementById('setup-pair-result').textContent='Conexão bloqueada até conferir o backup.'}
  };
 }
-window.addEventListener('load',()=>{const wait=()=>{if(!document.getElementById('racha-integration'))return setTimeout(wait,30);if(JSON.parse(localStorage.getItem('racha_sync_meta_v2')||'null')?.mode!=='paired')show()};wait()});
+window.addEventListener('load',()=>{const wait=()=>{if(!document.getElementById('racha-integration'))return setTimeout(wait,30);show()};wait()});
 })();
 
 (function(root){'use strict';
@@ -175,3 +190,48 @@ document.getElementById('restore-apply').onclick=async()=>{try{if(!document.getE
 }
 window.addEventListener('load',install);
 })();
+/* Restauração das caronas de combustível a partir da cópia no servidor (espelho da planilha).
+   Só é oferecida quando o aparelho está conectado E sem caronas de combustível locais.
+   Empréstimos e configurações NÃO estão no espelho: esses só voltam pelo backup em arquivo. */
+(function(root){'use strict';
+function toRide(x){
+ const now=new Date().toISOString();
+ return {id:x.id,type:x.type,amount:x.amount,date:x.date,paid:x.paid===true,status:'pending',category:'fuel',isAuto:false,is_sample:false,created_date:now,updated_date:now};
+}
+function buildDb(rawCurrent,rides){
+ const db=JSON.parse(rawCurrent);
+ const loans=(db.Ride||[]).filter(r=>r&&r.category==='loan');
+ db.Ride=loans.concat(rides.map(toRide));
+ return JSON.stringify(db);
+}
+async function checkAndOffer(){
+ const out=document.getElementById('sheet-restore-result');
+ try{
+  if(!root.RachaSignedTransport&&!(await root.RachaOwnerPairing.restore()))throw Error('not-paired');
+  const meta=JSON.parse(localStorage.getItem('racha_sync_meta_v2'));
+  out.textContent='Consultando a planilha...';
+  const r=await root.RachaSignedTransport.send('/snapshot',{device:meta.device});
+  const rides=Array.isArray(r.rides)?r.rides:[];
+  if(rides.length===0){out.textContent='A planilha não tem caronas guardadas. Se você tinha registros, use "Recuperar um backup" com o arquivo salvo.';return}
+  const pend=rides.filter(x=>x.paid!==true).reduce((a,x)=>a+x.amount,0);
+  out.innerHTML='Encontrei '+rides.length+' carona(s) na planilha'+(pend>0?' (R$ '+pend.toFixed(2).replace('.',',')+' a receber)':'')+'. ';
+  const b=document.createElement('button');b.type='button';b.id='sheet-restore-apply';b.textContent='Restaurar no celular';
+  out.appendChild(b);
+  b.onclick=async()=>{
+   try{
+    b.disabled=true;
+    const raw=localStorage.getItem('racha_db_v1'),next=buildDb(raw,rides);
+    if(!navigator.locks)throw Error('locks');
+    await navigator.locks.request('racha-db-exclusive-v2',()=>{
+     if(localStorage.getItem('racha_db_v1')!==raw)throw Error('changed');
+     localStorage.setItem('racha_backup_before_restore_v2',raw);
+     localStorage.setItem('racha_db_v1',next);
+     const m=JSON.parse(localStorage.getItem('racha_sync_meta_v2'));m.rev++;m.sheetConfirmed=false;localStorage.setItem('racha_sync_meta_v2',JSON.stringify(m));
+    });
+    out.textContent='Restaurado. Reabrindo...';setTimeout(()=>location.reload(),400);
+   }catch(e){b.disabled=false;out.textContent=e.message==='changed'?'Os dados mudaram durante a restauração. Nada foi trocado.':'Não consegui restaurar agora. Seus dados continuam iguais.'}
+  };
+ }catch(e){console.error('sheet-restore',e);out.textContent='Não consegui consultar a planilha agora. Tente de novo com internet.'}
+}
+root.RachaSheetRestore={checkAndOffer,buildDb,toRide};if(typeof module!=='undefined')module.exports={buildDb,toRide};
+})(typeof window==='undefined'?globalThis:window);
