@@ -9,7 +9,10 @@ header h1{white-space:normal!important;overflow:visible!important;text-overflow:
 header h1+p{display:none!important}
 header .flex.items-center.gap-3.min-w-0>div:first-child{display:none!important}
 header .shrink-0:last-child{margin-right:0!important}
-[id$=overlay]{padding-top:70px!important}
+/* 19/10 opcao E (pedido dele): Buscar/Custo rolam JUNTOS com a pagina, igual ao GPS -
+   o painel vira conteudo normal dentro do <main>, sem mascara, sem nada fixo por cima. */
+#rb-overlay,#rc-overlay{position:static!important;overflow-y:visible!important;padding:0 14px 150px!important;z-index:auto!important}
+#rb-overlay .rb-mask,#rc-overlay .rc-mask{display:none!important}
 #rm-dot{position:fixed;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;background:rgba(255,255,255,.35);border:2px solid #fff;z-index:99999;pointer-events:none;transform:scale(.4);opacity:0;transition:all .18s}
 #rm-dot.on{transform:scale(1);opacity:1}
 #rm-burger{position:fixed;left:20px;top:38px;width:44px;height:44px;border-radius:12px;background:#1a2433;border:1px solid rgba(255,255,255,.12);z-index:60;display:flex;align-items:center;justify-content:center;color:#fff}
@@ -46,6 +49,20 @@ function init(){
   document.body.append(bg,dr);
   function placeBurger(){var actions=document.querySelector('header .shrink-0:last-child');if(actions && bu.parentNode!==actions)actions.appendChild(bu)}
   placeBurger();new MutationObserver(placeBurger).observe(document.querySelector('#root'),{childList:true,subtree:true});
+  /* opcao E: com Buscar/Custo aberto, o painel entra no <main> (rola com a pagina) e
+     as outras telas da home ficam ocultas; o scroll da pagina fica livre. */
+  window.__rmSyncE=function(){
+    var rb=document.getElementById('rb-overlay'),rc=document.getElementById('rc-overlay');
+    var rbO=rb&&rb.style.display==='block',rcO=rc&&rc.style.display==='block';
+    var open=rbO||rcO,ov=rbO?rb:(rcO?rc:null);
+    var m=document.querySelector('main');
+    if(m){
+      [...m.children].forEach(function(c){if(c!==rb&&c!==rc)c.style.display=open?'none':''});
+      if(open&&ov&&ov.parentElement!==m)m.appendChild(ov);
+    }
+    if(open){document.documentElement.style.overflow='';document.body.style.overflow='';}
+  };
+  new MutationObserver(window.__rmSyncE).observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['style']});
   function render(){dr.innerHTML='<div class="h">Racha Combustível<small>abasteceu, rachou, rodou</small></div>'+items.map(function(x){return '<div class="it'+(x.label==cur?' act':'')+'" data-l="'+x.label+'"><span style="display:flex;transform:scale(.9)">'+x.svg+'</span>'+x.label+'</div>'}).join('')}
   bu.style.cssText='position:static;flex-shrink:0;width:38px;align-self:stretch;border-radius:12px;background:#16233b;border:1px solid rgba(255,255,255,.12);color:#cbd5e1;display:flex;align-items:center;justify-content:center';dr.style.left='auto';dr.style.right='0';dr.style.transform='translateX(102%)';dr.style.boxShadow='-6px 0 24px rgba(0,0,0,.5)';var st=document.createElement('style');st.textContent='#rm-drawer.on{transform:none!important}';document.head.appendChild(st);
   window.openM=function(){render();bg.classList.add('on');dr.classList.add('on');document.documentElement.style.overflow='hidden';document.body.style.overflow='hidden'};
