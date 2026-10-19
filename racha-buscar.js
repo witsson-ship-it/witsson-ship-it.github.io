@@ -176,7 +176,16 @@ function showOverlay(){
   ensureData().then(function(ok){
     if(!ok){document.getElementById("rb-out").innerHTML='<div class="rb-card"><p class="rb-empty">Não consegui carregar os preços agora. Confira a internet e toque em Buscar de novo.</p></div>';return}
     document.getElementById("rb-out").innerHTML="";
-    var q=document.getElementById("rb-q");if(q.value)buscar();
+    var q=document.getElementById("rb-q");
+    if(q.value){buscar();return}
+    /* Bug 19/10: a aba abria em branco depois de "Carregando precos..." (so mostrava algo depois de digitar a cidade).
+       Agora abre ja mostrando Apucarana; se nao houver na pesquisa, mostra sugestoes de cidades. Nao mexe em prices_single/prices_full. */
+    var ka=Object.keys(data.cidades||{}).find(function(k){return norm(k)==="apucarana|pr"||norm(data.cidades[k].label)==="apucarana"});
+    if(ka){q.value=data.cidades[ka].label;renderAnp(ka);return}
+    var all=Object.keys(data.cidades||{}).map(function(k){return[k,data.cidades[k]]})
+      .concat(Object.keys(data.cadastro||{}).map(function(k){return[k,data.cadastro[k]]}));
+    var sugs=all.slice(0,8).map(function(e){return cityButton(e[0],e[1])}).join("");
+    document.getElementById("rb-out").innerHTML='<div class="rb-card"><p class="rb-empty">Digite uma cidade acima ou escolha:</p><div class="rb-sug">'+sugs+"</div></div>";
   });
 }
 function hideOverlay(){if(overlay)overlay.style.display="none"}
