@@ -48,8 +48,8 @@ function init(){
   placeBurger();new MutationObserver(placeBurger).observe(document.querySelector('#root'),{childList:true,subtree:true});
   function render(){dr.innerHTML='<div class="h">Racha Combustível<small>abasteceu, rachou, rodou</small></div>'+items.map(function(x){return '<div class="it'+(x.label==cur?' act':'')+'" data-l="'+x.label+'"><span style="display:flex;transform:scale(.9)">'+x.svg+'</span>'+x.label+'</div>'}).join('')}
   bu.style.cssText='position:static;flex-shrink:0;width:38px;align-self:stretch;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.05);color:#cbd5e1;display:flex;align-items:center;justify-content:center';dr.style.left='auto';dr.style.right='0';dr.style.transform='translateX(102%)';dr.style.boxShadow='-6px 0 24px rgba(0,0,0,.5)';var st=document.createElement('style');st.textContent='#rm-drawer.on{transform:none!important}';document.head.appendChild(st);
-  window.openM=function(){render();bg.classList.add('on');dr.classList.add('on')};
-  window.closeM=function(){bg.classList.remove('on');dr.classList.remove('on')};
+  window.openM=function(){render();bg.classList.add('on');dr.classList.add('on');document.documentElement.style.overflow='hidden';document.body.style.overflow='hidden'};
+  window.closeM=function(){bg.classList.remove('on');dr.classList.remove('on');if(!window.__rachaUnlock)window.__rachaUnlock=function(){if(document.getElementById("rb-overlay")&&document.getElementById("rb-overlay").style.display==="block")return;if(document.getElementById("rc-overlay")&&document.getElementById("rc-overlay").style.display==="block")return;if(document.querySelector("#rm-drawer.on"))return;document.documentElement.style.overflow="";document.body.style.overflow=""};window.__rachaUnlock()};
   bg.onclick=closeM;bu.onclick=openM;
   dr.onclick=function(e){var t=e.target.closest('.it');if(t){go(t.dataset.l);closeM()}};
  }
