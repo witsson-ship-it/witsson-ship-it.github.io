@@ -1,4 +1,6 @@
 (function(){
+/* P1: pede armazenamento persistente - sem isso o Chrome pode descartar os dados do site sob pressao. */
+try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(function(){})}catch(e){}
 var APP="6a752f1eb41dba10c59dbb33",KEY="racha_db_v1",SEED="racha_seeded_v1";
 var db=null,lastRaw=null;try{if(!localStorage.getItem("base44_access_token"))localStorage.setItem("base44_access_token","local-copy")}catch(e){}
 function load(){if(db)return db;try{lastRaw=localStorage.getItem(KEY);db=JSON.parse(lastRaw||"null")}catch(e){}return db}
