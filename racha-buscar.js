@@ -18,7 +18,7 @@ function injectStyle(){
   if(document.getElementById("rb-style"))return;
   var st=document.createElement("style");st.id="rb-style";
   st.textContent=[
- "#rb-overlay{position:fixed;inset:0;z-index:40;background:#0b1220;overflow-y:auto;padding:16px 14px 150px;font-family:Inter,system-ui,sans-serif}",
+ "#rb-overlay{position:fixed;inset:0;z-index:40;background:#0b1220;overflow-y:auto;padding:16px 14px 150px;font-family:Inter,system-ui,sans-serif;overscroll-behavior:contain}",
  "#rb-overlay .rb-card{background:#101b30;border:1px solid #1e293b;border-radius:18px;padding:16px;margin-bottom:14px;max-width:560px;margin-left:auto;margin-right:auto}",
  "#rb-overlay h2{color:#fff;font-size:16.5px;margin:0}",
  "#rb-overlay .rb-sub{color:#64748b;font-size:11.5px;margin:3px 0 12px}",
@@ -172,6 +172,7 @@ function showOverlay(){
     overlay.addEventListener("keydown",function(ev){if(ev.key==="Enter"&&ev.target.id==="rb-q")buscar()});
   }
   overlay.style.display="block";
+  document.documentElement.style.overflow="hidden";document.body.style.overflow="hidden";
   document.getElementById("rb-out").innerHTML='<div class="rb-card"><p class="rb-empty">Carregando preços…</p></div>';
   ensureData().then(function(ok){
     if(!ok){document.getElementById("rb-out").innerHTML='<div class="rb-card"><p class="rb-empty">Não consegui carregar os preços agora. Confira a internet e toque em Buscar de novo.</p></div>';return}
@@ -188,7 +189,7 @@ function showOverlay(){
     document.getElementById("rb-out").innerHTML='<div class="rb-card"><p class="rb-empty">Digite uma cidade acima ou escolha:</p><div class="rb-sug">'+sugs+"</div></div>";
   });
 }
-function hideOverlay(){if(overlay)overlay.style.display="none"}
+function hideOverlay(){if(overlay)overlay.style.display="none";if(!window.__rachaUnlock)window.__rachaUnlock=function(){if(document.getElementById("rb-overlay")&&document.getElementById("rb-overlay").style.display==="block")return;if(document.getElementById("rc-overlay")&&document.getElementById("rc-overlay").style.display==="block")return;if(document.querySelector("#rm-drawer.on"))return;document.documentElement.style.overflow="";document.body.style.overflow=""};window.__rachaUnlock()}
 
 function setActive(on){
   if(!myBtn)return;
