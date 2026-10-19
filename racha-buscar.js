@@ -18,7 +18,8 @@ function injectStyle(){
   if(document.getElementById("rb-style"))return;
   var st=document.createElement("style");st.id="rb-style";
   st.textContent=[
- "#rb-overlay{position:fixed;inset:0;z-index:40;background:#0b1220;overflow-y:auto;padding:16px 14px 150px;font-family:Inter,system-ui,sans-serif;overscroll-behavior:contain}",
+ "#rb-overlay{position:fixed;inset:0;z-index:40;background:#0b1220;overflow-y:auto;padding:70px 14px 150px;font-family:Inter,system-ui,sans-serif;overscroll-behavior:contain}",
+ "#rb-overlay .rb-mask{position:fixed;top:0;left:0;right:0;height:70px;background:#0b1220;z-index:2}",
  "#rb-overlay .rb-card{background:#101b30;border:1px solid #1e293b;border-radius:18px;padding:16px;margin-bottom:14px;max-width:560px;margin-left:auto;margin-right:auto}",
  "#rb-overlay h2{color:#fff;font-size:16.5px;margin:0}",
  "#rb-overlay .rb-sub{color:#64748b;font-size:11.5px;margin:3px 0 12px}",
@@ -149,7 +150,7 @@ function showOverlay(){
   injectStyle();
   if(!overlay){
     overlay=document.createElement("div");overlay.id="rb-overlay";
-    overlay.innerHTML='<div class="rb-card"><h2>🔍 Buscar postos por cidade</h2><p class="rb-sub">Gasolina comum · R$/litro</p>'
+    overlay.innerHTML='<div class="rb-mask"></div><div class="rb-card"><h2>🔍 Buscar postos por cidade</h2><p class="rb-sub">Gasolina comum · R$/litro</p>'
      +'<div class="rb-sb"><input id="rb-q" placeholder="Digite a cidade (ex.: Apucarana)"><button id="rb-go">Buscar</button></div>'
      +'<div class="rb-chips" id="rb-meta"></div></div>'
      +'<div id="rb-out"></div>';
