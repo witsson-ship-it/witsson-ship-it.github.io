@@ -83,9 +83,10 @@ function showOverlay(){
   overlay.innerHTML=render();
   overlay.scrollTop=0;
   overlay.style.display="block";
+  document.documentElement.style.overflow="hidden";document.body.style.overflow="hidden";
   loadConfig();
 }
-function hideOverlay(){if(overlay)overlay.style.display="none"}
+function hideOverlay(){if(overlay)overlay.style.display="none";if(!window.__rachaUnlock)window.__rachaUnlock=function(){if(document.getElementById("rb-overlay")&&document.getElementById("rb-overlay").style.display==="block")return;if(document.getElementById("rc-overlay")&&document.getElementById("rc-overlay").style.display==="block")return;if(document.querySelector("#rm-drawer.on"))return;document.documentElement.style.overflow="";document.body.style.overflow=""};window.__rachaUnlock()}
 
 function setActive(on){
   if(!myBtn)return;
