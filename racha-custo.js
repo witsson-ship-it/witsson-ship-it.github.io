@@ -1,12 +1,12 @@
 /* Racha: aba "Custo" - Meu custo por dia (aprovado pelo Witsson em 19/10/2026, com ajustes: sem nome do passageiro, preco do posto automatico).
    So mostra o custo real dele (gasolina + pneus), com e sem passageiro.
    NAO mexe em prices_single/prices_full (R$15/R$30). Oleo fora da conta (pedido dele).
-   Numeros aprovados: 11,4 km/l medido, pneu R$1.039,60 / 50 mil km (estimativa),
+   Numeros aprovados: 11,4 km/l medido, pneu R$1.039,60 / 25 mil km (estimativa, pneu Itaro),
    79,3 km/dia com passageiro, ~76 km sem. Preco da gasolina vem do UserConfig
    (atualizado sozinho toda semana pelo preco ANP do posto); fallback R$6,79. */
 (function(){
 var APP_ID="6a752f1eb41dba10c59dbb33";
-var CONSUMO=11.4, KM_COM=79.3, KM_SEM=76, PNEU_JOGO=1039.60, PNEU_KM=50000, DIARIA=30;
+var CONSUMO=11.4, KM_COM=79.3, KM_SEM=76, PNEU_JOGO=1039.60, PNEU_KM=25000, DIARIA=30;
 var FUEL_FALLBACK=6.79, fuelPrice=FUEL_FALLBACK;
 var ACTIVE_CLS="text-blue-400",INACTIVE_CLS="text-slate-400 hover:text-slate-200",PILL="bg-blue-500/15";
 var overlay=null,myBtn=null,observer=null;
@@ -48,10 +48,10 @@ function render(){
   var gasS=r2(KM_SEM*ck), pnS=r2(KM_SEM*PNEU_JOGO/PNEU_KM), totS=r2(gasS+pnS);
   var fp=fuelPrice.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
   var cks=ck.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
-  return '<div class="rc-mask"></div><div style="max-width:560px;margin:0 auto"><h2>Meu custo por dia</h2><p class="rc-sub">Só pra você · as cobranças R$15/R$30 não mudam</p></div>'
+  return '<div class="rc-mask"></div><div style="max-width:560px;margin:0 auto"><h2 style="margin-bottom:14px">Meu custo por dia</h2></div>'
   +'<div class="rc-card"><div class="rc-h">Dia COM passageiro ('+String(KM_COM).replace(".",",")+' km)</div>'
   +'<div class="rc-row"><div><div class="rc-lbl">Gasolina</div><div class="rc-det">'+String(KM_COM).replace(".",",")+' km × '+cks+'/km · 11,4 km/l · '+fp+' no posto (ANP)</div></div><div class="rc-val">'+brl(gasC)+'</div></div>'
-  +'<div class="rc-row"><div><div class="rc-lbl">Pneus</div><div class="rc-det">jogo R$ 1.039,60 · 50 mil km estimados*</div></div><div class="rc-val">'+brl(pnC)+'</div></div>'
+  +'<div class="rc-row"><div><div class="rc-lbl">Pneus</div><div class="rc-det">jogo R$ 1.039,60 · 25 mil km estimados*</div></div><div class="rc-val">'+brl(pnC)+'</div></div>'
   +'<div class="rc-row rc-sep"><div class="rc-lbl">Custo do dia</div><div class="rc-val">'+brl(totC)+'</div></div>'
   +'<div class="rc-row rc-neg"><div><div class="rc-lbl">Diária que o passageiro paga</div></div><div class="rc-val">− '+brl(DIARIA)+'</div></div>'
   +'<div class="rc-row rc-sep rc-pocket"><div class="rc-lbl">Sai do seu bolso</div><div class="rc-val">'+brl(bolC)+'</div></div></div>'
@@ -60,7 +60,7 @@ function render(){
   +'<div class="rc-row"><div><div class="rc-lbl">Pneus</div></div><div class="rc-val">'+brl(pnS)+'</div></div>'
   +'<div class="rc-row rc-sep rc-pocket"><div class="rc-lbl">Sai do seu bolso</div><div class="rc-val">'+brl(totS)+'</div></div></div>'
   +'<div class="rc-hero"><div class="rc-lbl">Cada dia com passageiro cobre</div><div class="rc-big">'+brl(DIARIA)+'</div><div class="rc-det">do seu custo de gasolina e pneu</div></div>'
-  +'<p class="rc-note">*A PneuStore não informa km de duração. Uso comum: 40 a 60 mil km — usei 50 mil. Óleo fora da conta, como você pediu. O preço da gasolina atualiza sozinho toda semana (ANP).</p>';
+  +'<p class="rc-note">*Pneu Itaro: sem km oficial; donos relatam de 25 a 50 mil km — usei 25 mil (cautela). O preço da gasolina atualiza sozinho toda semana (ANP).</p>';
 }
 
 async function loadConfig(){
