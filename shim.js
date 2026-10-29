@@ -20,6 +20,18 @@ window.RachaLocalBridge={
  }
 };
 var ready=(async function(){
+  /* Correcao unica (2026-10-29): a Diaria de 08/10 ficou com 121,8 km, a estimativa antiga do app em dobro (2x o "Padrao" de 60,9 km). O valor correto da diaria e 79,3 km, igual as diarias depois da correcao de rota de 09/10. */
+  try{
+    if(load()&&!localStorage.getItem('racha_fix_km0810_v1')){
+      var arrFix=(db.Ride||[]);
+      for(var i=0;i<arrFix.length;i++){
+        if(arrFix[i]&&arrFix[i].id==='6ac80d8b4ec9c9103351db71'&&arrFix[i].distance===121.8){
+          arrFix[i].distance=79.3;arrFix[i].updated_date=now();
+        }
+      }
+      localStorage.setItem('racha_fix_km0810_v1','done');save();
+    }
+  }catch(e){}
   if(load())return;
   db={UserConfig:[{id:rid(),prices_single:15,prices_full:30,defaultDistance:60.9,carConsumption:13,fuelPrice:6.59,autoPilot:false,autoPilotMode:"full",loanPin:"123",lastAutoRun:null,currentMileage:0,maintenanceRatePerKm:0,useRealConsumption:true,created_date:now(),updated_date:now()}]};save();
 })();
