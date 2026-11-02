@@ -2,6 +2,22 @@
 /* P1: pede armazenamento persistente - sem isso o Chrome pode descartar os dados do site sob pressao. */
 try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(function(){})}catch(e){}
 var APP="6a752f1eb41dba10c59dbb33",KEY="racha_db_v1",SEED="racha_seeded_v1";
+var _rf=window.fetch.bind(window);
+async function orsGeocode(text){
+  var r=await _rf("https://racha-sync-test.witsson.workers.dev/ors/geocode?text="+encodeURIComponent(text));
+  var j=await r.json();
+  var f=j&&j.features&&j.features[0];
+  if(!f)throw Error("Endereco nao encontrado: "+text);
+  return {lon:f.geometry.coordinates[0],lat:f.geometry.coordinates[1],label:f.properties.label||text};
+}
+async function orsRoute(pts){
+  var coords=pts.map(function(p2){return [p2.lon,p2.lat]});
+  var r=await _rf("https://racha-sync-test.witsson.workers.dev/ors/directions",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({coordinates:coords})});
+  var j=await r.json();
+  var ro=j&&j.routes&&j.routes[0];
+  if(!ro)throw Error((j&&j.error&&j.error.message)||"Roteamento falhou");
+  return ro.summary.distance/1000;
+}
 var db=null,lastRaw=null;try{if(!localStorage.getItem("base44_access_token"))localStorage.setItem("base44_access_token","local-copy")}catch(e){}
 function load(){if(db)return db;try{lastRaw=localStorage.getItem(KEY);db=JSON.parse(lastRaw||"null")}catch(e){}return db}
 function guard(){if(localStorage.getItem(KEY)!==lastRaw)throw Error("Outra aba alterou os dados. Reabra esta aba antes de salvar.")}
@@ -77,6 +93,21 @@ async function handleInternal(method,url,body){
   }
   if(/public-settings/.test(p))return [200,{id:APP,public_settings:"public_without_login"}];
   if(/\/api\/(app-logs|apps\/[^/]+\/analytics)/.test(p))return [200,{}];
+  var mfn=p.match(/\/api\/apps\/[^/]+\/functions\/CalculateRoute$/);
+  if(mfn&&method==="POST"){
+    try{
+      function full(cep,num){cep=(cep||"").trim();if(num)cep=cep+" "+num;return cep;}
+      var pts=[];
+      var o1=await orsGeocode(full(body&&body.cepOrigin,body&&body.numOrigin));pts.push(o1);
+      var st=null;
+      if(body&&(body.cepStop||"").trim()){st=await orsGeocode(full(body.cepStop,body.numStop));pts.push(st);}
+      var de=await orsGeocode(full(body&&body.cepDest,body&&body.numDest));pts.push(de);
+      var ida=await orsRoute(pts);
+      var volta=await orsRoute(pts.slice().reverse());
+      ida=Math.round(ida*10)/10;volta=Math.round(volta*10)/10;
+      return [200,{origin:o1.label,stop:st?st.label:null,dest:de.label,oneWayDistance:ida,returnDistance:volta,distance:Math.round((ida+volta)*10)/10,source:"ORS"}];
+    }catch(e){return [200,{error:(e&&e.message)||"Erro ao calcular rota"}];}
+  }
   return null;
 }
 var OX=window.XMLHttpRequest;
