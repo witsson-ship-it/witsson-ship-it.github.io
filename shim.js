@@ -21,7 +21,7 @@ async function orsRoute(pts){
 var db=null,lastRaw=null;try{if(!localStorage.getItem("base44_access_token"))localStorage.setItem("base44_access_token","local-copy")}catch(e){}
 function load(){if(db)return db;try{lastRaw=localStorage.getItem(KEY);db=JSON.parse(lastRaw||"null")}catch(e){}return db}
 function guard(){if(localStorage.getItem(KEY)!==lastRaw)throw Error("Outra aba alterou os dados. Reabra esta aba antes de salvar.")}
-function save(){guard();const raw=JSON.stringify(db);localStorage.setItem(KEY,raw);lastRaw=raw;window.dispatchEvent(new Event("racha:db-saved"))}
+function save(){if(window.__rachaRestoring)throw Error("Restauração em andamento. Reabrindo.");guard();const raw=JSON.stringify(db);localStorage.setItem(KEY,raw);lastRaw=raw;window.dispatchEvent(new Event("racha:db-saved"))}
 /* URL database import intentionally disabled in this candidate. */
 window.RachaLocalBridge={
  snapshot:function(){return JSON.parse(JSON.stringify(load()))},

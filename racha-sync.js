@@ -47,12 +47,15 @@ root.RachaBackupCore={inspect,digest};if(typeof module!=='undefined')module.expo
 (function(){'use strict';
 // Preview starts disconnected. No remote endpoint or credential is embedded.
 const META='racha_sync_meta_v2';let busy=false,timer,lastAttempt=0,staleTab=false;
+/* Se o banco não existir no momento em que este script carrega (ele é o primeiro da página, antes do seed), o armazenamento foi limpo: marca para restaurar da nuvem quando parear. Um usuário que apaga registros de propósito continua com o banco presente, então nunca recebe a marca. */
+if(!localStorage.getItem('racha_db_v1')){try{localStorage.setItem('racha_pending_restore_v1','1')}catch(e){}}
 const read=()=>JSON.parse(localStorage.getItem(META)||'null');
 function meta(){let m=read();if(!m){m={device:crypto.randomUUID().replaceAll('-',''),rev:1,mode:'disconnected'};localStorage.setItem(META,JSON.stringify(m))}return m}
 const status=t=>{const e=document.getElementById('racha-status');if(e)e.textContent=t;const notice=document.getElementById('racha-sync-error');if(notice){notice.hidden=!/não confirmada|ainda não confirmada|Outra aba/i.test(t);notice.textContent=notice.hidden?'':t.startsWith('Outra aba')?t:'Cópia não confirmada. Seus dados estão no celular.'}};
-function dirty(){const m=meta();m.rev++;localStorage.setItem(META,JSON.stringify(m));status('Salvo no celular.');clearTimeout(timer);timer=setTimeout(sync,2500)}
+function dirty(){const m=meta();m.rev++;localStorage.setItem(META,JSON.stringify(m));status('Salvo no celular.');clearTimeout(timer);timer=setTimeout(sync,2500);scheduleFullBackup()}
 async function sync(){if(staleTab){status('Outra aba alterou os dados. Reabra esta aba antes de continuar.');return}if(!navigator.locks){status('Cópia não confirmada. Reabra em um navegador atualizado.');return}return navigator.locks.request('racha-db-exclusive-v2',{ifAvailable:true},lock=>{if(lock)return syncLocked();clearTimeout(timer);timer=setTimeout(sync,1500)})}
 async function syncLocked(){
+ if(restoreState==='verificando'||restoreState==='fazendo'){clearTimeout(timer);timer=setTimeout(sync,1500);return}
  const m=meta();if(m.mode!=='paired'){status('PRÉVIA: conexão desligada. Dados ficam no celular.');return}
  if(busy||document.visibilityState==='hidden'||!navigator.onLine)return;
  if(Date.now()-lastAttempt<5000){clearTimeout(timer);timer=setTimeout(sync,5000-(Date.now()-lastAttempt));return;}lastAttempt=Date.now();busy=true;
@@ -63,7 +66,7 @@ async function syncLocked(){
   const result=await RachaSignedTransport.send('/sync',payload);
   if(!result.ok||result.rev!==m.rev)throw Error('not-confirmed');
   const fresh=meta();fresh.last=Date.now();fresh.sheetConfirmed=result.sheetConfirmed===true;localStorage.setItem(META,JSON.stringify(fresh));
-  status(result.sheetConfirmed?'Cópia confirmada na planilha.':'Salvo no servidor. Planilha ainda não confirmada.');
+  status(result.sheetConfirmed?'Cópia confirmada na planilha.':'Salvo no servidor. Planilha ainda não confirmada.');scheduleFullBackup();
   if(result.commands?.length){RachaLocalBridge.applyCommands(result.commands);status('Comandos conferidos. Atualize o painel para ver os resultados.');location.reload()}
   }catch{const fresh=meta();fresh.sheetConfirmed=false;localStorage.setItem(META,JSON.stringify(fresh));status('Cópia não confirmada. Seus dados continuam no celular.')}finally{
   busy=false;
@@ -71,6 +74,64 @@ async function syncLocked(){
  }
 
 }
+
+/* Cópia completa na nuvem (2026-11-06): além do espelho de caronas, o app guarda
+   no servidor uma cópia de TUDO (caronas, empréstimos, abastecimentos, manutenção,
+   rotas e ajustes). Se o Chrome limpar os dados, o app baixa a cópia sozinho ao
+   reabrir pareado. Restauração só acontece quando o aparelho estava sem dados. */
+let restoreState='verificando',backupTimer=null,backupBusy=false;
+function cloudCopyStatus(t){const e=document.getElementById('racha-cloud-copy');if(e)e.textContent=t}
+async function pushFullBackup(){
+ if(restoreState==='fazendo'||restoreState==='verificando')return;
+ if(localStorage.getItem('racha_pending_restore_v1'))return;
+ const m=meta();if(m.mode!=='paired')return;
+ if(backupBusy||staleTab||document.visibilityState==='hidden'||!navigator.onLine)return;
+ if(!window.RachaSignedTransport)return;
+ const raw=localStorage.getItem('racha_db_v1');if(!raw)return;
+ try{RachaBackupCore.inspect(raw)}catch{return}
+ backupBusy=true;
+ try{
+  const hash=await RachaBackupCore.digest(raw);
+  if(hash===m.lastBackupHash){cloudCopyStatus('Cópia completa na nuvem em dia.');return}
+  const r=await RachaSignedTransport.send('/backup',{protocol:1,device:m.device,rev:m.rev,hash:hash,data:raw,at:new Date().toISOString()});
+  if(!r||r.ok!==true)throw Error('backup-not-confirmed');
+  const fresh=meta();fresh.lastBackupHash=hash;fresh.lastBackupAt=Date.now();localStorage.setItem(META,JSON.stringify(fresh));
+  cloudCopyStatus('Cópia completa guardada na nuvem: '+new Date().toLocaleString('pt-BR'));
+ }catch(e){cloudCopyStatus('Cópia completa ainda não confirmada. Seus dados continuam no celular.')}
+ finally{backupBusy=false}
+}
+function scheduleFullBackup(){clearTimeout(backupTimer);backupTimer=setTimeout(pushFullBackup,6000)}
+async function maybeAutoRestore(){
+ if(restoreState!=='verificando')return;
+ const m=meta();
+ // Só restaura quando: aparelho pareado + meta recém-criado (rev<=1 = armazenamento foi limpo)
+ // + banco local sem nenhum registro (limpeza do Chrome). Um usuário que apagou registros
+ // de propósito mantém o meta com rev alto, então nunca é sobrescrito.
+ if(m.mode!=='paired'||!localStorage.getItem('racha_pending_restore_v1')){restoreState='nao-precisa';return}
+ let db=null;try{db=JSON.parse(localStorage.getItem('racha_db_v1')||'null')}catch{}
+ const total=db?((db.Ride||[]).length+(db.FuelRefuel||[]).length+(db.MaintenanceLog||[]).length+(db.RouteHistory||[]).length):0;
+ if(total>0){try{localStorage.removeItem('racha_pending_restore_v1')}catch(e){}restoreState='nao-precisa';return}
+ try{if(!window.RachaSignedTransport&&!(await RachaOwnerPairing.restore())){restoreState='nao-precisa';return}}catch{restoreState='nao-precisa';return}
+ restoreState='fazendo';status('Buscando sua cópia na nuvem...');
+ try{
+  const r=await RachaSignedTransport.send('/backup/read',{device:m.device});
+  if(!r||r.ok!==true||typeof r.data!=='string'||r.data.length===0){try{localStorage.removeItem('racha_pending_restore_v1')}catch(e){}restoreState='nao-precisa';status('Conexão pronta. Nenhuma cópia na nuvem ainda.');return}
+  if(typeof r.hash==='string'&&r.hash&&await RachaBackupCore.digest(r.data)!==r.hash)throw Error('hash');
+  RachaBackupCore.inspect(r.data);
+  const incoming=JSON.parse(r.data);
+  const incomingTotal=(incoming.Ride||[]).length+(incoming.FuelRefuel||[]).length+(incoming.MaintenanceLog||[]).length+(incoming.RouteHistory||[]).length;
+  if(incomingTotal===0){restoreState='nao-precisa';return}
+  if(!navigator.locks)throw Error('locks');
+  window.__rachaRestoring=true;
+  await navigator.locks.request('racha-db-exclusive-v2',()=>{
+   localStorage.setItem('racha_db_v1',r.data);
+   const fresh=meta();if(typeof r.rev==='number'&&r.rev>fresh.rev)fresh.rev=r.rev;fresh.lastBackupHash=r.hash||fresh.lastBackupHash||null;fresh.sheetConfirmed=false;localStorage.setItem(META,JSON.stringify(fresh));
+  });
+  try{localStorage.removeItem('racha_pending_restore_v1')}catch(e){}
+ restoreState='feita';status('Seus dados voltaram da cópia na nuvem. Reabrindo...');setTimeout(()=>location.reload(),700);
+ }catch(e){window.__rachaRestoring=false;restoreState='nao-precisa';status('Não consegui baixar a cópia da nuvem. Seus dados continuam neste aparelho.')}
+}
+
 function backup(){
  const raw=localStorage.getItem('racha_db_v1');if(!raw)throw Error('no-db');const data=JSON.parse(raw);if(!data||!Array.isArray(data.Ride||[]))throw Error('invalid-db');
  const blob=new Blob([raw],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='racha-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
@@ -78,7 +139,7 @@ function backup(){
  // A click is not proof of a completed download. Never mark backup verified here.
 }
 function ui(){meta();
- const p=document.createElement('details');p.id='racha-integration';p.open=false;p.innerHTML='<summary>☁ Planilha privada</summary><p id="racha-status">Conexão desligada. Dados ficam no celular.</p><p>O app continua funcionando sem internet. Caronas do assistente só chegam ao abrir o app com internet.</p><div><button id="racha-backup">Salvar backup do celular</button><button id="racha-sync">Tentar sincronizar</button></div><small>Exclusão segura: só carona criada pelo assistente nesta versão, sem alteração ou pagamento. A cópia anterior fica guardada no celular.</small><small>Ida R$15 · Volta R$15 · Diária R$30.</small>';
+ const p=document.createElement('details');p.id='racha-integration';p.open=false;p.innerHTML='<summary>☁ Planilha privada</summary><p id="racha-status">Conexão desligada. Dados ficam no celular.</p><p>O app continua funcionando sem internet. Caronas do assistente só chegam ao abrir o app com internet.</p><div><button id="racha-backup">Salvar backup do celular</button><button id="racha-sync">Tentar sincronizar</button></div><small>Exclusão segura: só carona criada pelo assistente nesta versão, sem alteração ou pagamento. A cópia anterior fica guardada no celular.</small><small id=racha-cloud-copy>Cópia completa na nuvem: verificando...</small><small>Ida R$15 · Volta R$15 · Diária R$30.</small>';
  const holder=document.createElement('div');holder.id='racha-sync-storage';holder.hidden=true;holder.appendChild(p);document.body.appendChild(holder);
  const notice=document.createElement('div');notice.id='racha-sync-error';notice.hidden=true;notice.setAttribute('role','status');document.body.appendChild(notice);
  const mount=()=>{let slot=document.getElementById('racha-settings-slot');if(!slot){const h=Array.from(document.querySelectorAll('h3')).find(h=>h.textContent.includes('Ajustes do Sistema'));const form=h?.parentElement?.parentElement?.querySelector('form');if(form){slot=document.createElement('div');slot.id='racha-settings-slot';form.prepend(slot)}}if(slot&&p.parentElement!==slot)slot.appendChild(p);else if(!slot&&!holder.contains(p))holder.appendChild(p)};
@@ -87,7 +148,7 @@ function ui(){meta();
  p.querySelectorAll('button').forEach(b=>b.type='button');
  document.getElementById('racha-backup').onclick=()=>{try{backup()}catch{status('Não consegui preparar o backup. Nada foi apagado.')}};document.getElementById('racha-sync').onclick=sync;sync();
 }
-window.addEventListener('storage',e=>{if(e.key==='racha_db_v1'){staleTab=true;clearTimeout(timer);status('Outra aba alterou os dados. Reabra esta aba antes de continuar.')}});window.addEventListener('racha:db-saved',dirty);window.addEventListener('online',sync);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')sync()});window.addEventListener('load',async()=>{if(window.RachaOwnerPairing){try{await RachaOwnerPairing.restore()}catch{}}ui()});
+window.addEventListener('storage',e=>{if(e.key==='racha_db_v1'){staleTab=true;clearTimeout(timer);status('Outra aba alterou os dados. Reabra esta aba antes de continuar.')}});window.addEventListener('racha:db-saved',dirty);window.addEventListener('online',sync);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')sync()});window.addEventListener('load',async()=>{if(window.RachaOwnerPairing){try{await RachaOwnerPairing.restore()}catch{}}ui();try{const m=meta();cloudCopyStatus(m.lastBackupAt?('Última cópia completa na nuvem: '+new Date(m.lastBackupAt).toLocaleString('pt-BR')):'Cópia completa na nuvem ainda não enviada.')}catch(e){}maybeAutoRestore()});
 })();
 
 (function(root){'use strict';
@@ -95,7 +156,7 @@ const enc=new TextEncoder(),b64=b=>btoa(String.fromCharCode(...new Uint8Array(b)
 function open(){return new Promise((resolve,reject)=>{const r=indexedDB.open('racha_device_keys_v2',1);r.onupgradeneeded=()=>r.result.createObjectStore('keys');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
 async function keys(){const db=await open();try{let saved=await new Promise((r,j)=>{const q=db.transaction('keys').objectStore('keys').get('device');q.onsuccess=()=>r(q.result);q.onerror=()=>j(q.error)});if(saved)return saved;const pair=await crypto.subtle.generateKey({name:'ECDSA',namedCurve:'P-256'},false,['sign','verify']);await new Promise((r,j)=>{const tx=db.transaction('keys','readwrite');tx.objectStore('keys').add(pair,'device');tx.oncomplete=r;tx.onerror=()=>j(tx.error)});return pair}finally{db.close()}}
 function make(pair){return{async send(path,x){
- if(!['/pair/start','/pair/status','/sync','/snapshot'].includes(path))throw Error('wrong-path');
+ if(!['/pair/start','/pair/status','/sync','/snapshot','/backup','/backup/read'].includes(path))throw Error('wrong-path');
  const body=JSON.stringify(x),ts=String(Date.now()),nonce=b64(crypto.getRandomValues(new Uint8Array(24))),hash=b64(await crypto.subtle.digest('SHA-256',enc.encode(body))),sig=b64(await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},pair.privateKey,enc.encode(['POST',path,ts,nonce,hash].join('\n'))));
  const r=await fetch('https://racha-sync-test.witsson.workers.dev'+path,{method:'POST',credentials:'omit',headers:{'Content-Type':'application/json','x-racha-time':ts,'x-racha-nonce':nonce,'x-racha-signature':sig},body,signal:AbortSignal.timeout(20000)});
  const v=await r.json();if(!r.ok)throw Error(v.error||'pairing-failed');return v;
@@ -113,7 +174,7 @@ root.RachaOwnerPairing={
 let expected=null,verified=null;
 function show(){
  const panel=document.getElementById('racha-integration');if(!panel)return;
- panel.innerHTML='<summary>☁ Planilha privada</summary><p class="setup-note">Seus dados continuam neste celular até você conectar.</p><section><h3>1. Guardar seus dados</h3><p>Salve uma cópia antes de conectar. Nada é apagado ou substituído.</p><button id="setup-download">Salvar backup</button><p id="setup-backup-result" role="status">Backup ainda não conferido.</p><p id="setup-backup-age" class="setup-note"></p><label class="setup-file">Conferir arquivo salvo<span id="setup-filename">Nenhum arquivo escolhido</span><input id="setup-file" type="file" accept=".json,application/json"></label><small>O arquivo é conferido neste aparelho. Não é enviado para a planilha.</small></section><section><h3>2. Conectar este celular</h3><p>Depois do backup, este aparelho poderá enviar caronas e receber comandos ao abrir o app com internet.</p><button id="setup-pair" disabled>Conectar celular</button><p id="setup-pair-result" role="status">Primeiro salve e confira o backup.</p></section><small>Ida R$15 · Volta R$15 · Diária R$30.<br>Sem internet, seus registros continuam no celular.</small>';
+ panel.innerHTML='<summary>☁ Planilha privada</summary><p class="setup-note">Seus dados continuam neste celular até você conectar.</p><section><h3>1. Guardar seus dados</h3><p>Salve uma cópia antes de conectar. Nada é apagado ou substituído.</p><button id="setup-download">Salvar backup</button><p id="setup-backup-result" role="status">Backup ainda não conferido.</p><p id="setup-backup-age" class="setup-note"></p><label class="setup-file">Conferir arquivo salvo<span id="setup-filename">Nenhum arquivo escolhido</span><input id="setup-file" type="file" accept=".json,application/json"></label><small>O arquivo é conferido neste aparelho. Não é enviado para a planilha.</small></section><section><h3>2. Conectar este celular</h3><p>Depois do backup, este aparelho poderá enviar caronas e receber comandos ao abrir o app com internet.</p><button id="setup-pair" disabled>Conectar celular</button><p id="setup-pair-result" role="status">Primeiro salve e confira o backup.</p></section><small id=racha-cloud-copy></small><small>Ida R$15 · Volta R$15 · Diária R$30.<br>Sem internet, seus registros continuam no celular.</small>';
  panel.querySelectorAll('button').forEach(b=>b.type='button');
  /* P5: estado conectado + idade do backup + restaurar da planilha */
  try{
@@ -163,7 +224,8 @@ function show(){
   }catch{verified=null;document.getElementById('setup-pair').disabled=true;result('Esse arquivo não corresponde aos dados atuais. Salve um novo backup.');document.getElementById('setup-pair-result').textContent='Conexão bloqueada até conferir o backup.'}
  };
 }
-window.addEventListener('load',()=>{const wait=()=>{if(!document.getElementById('racha-integration'))return setTimeout(wait,30);show()};wait()});
+function fillCloudCopy(){try{const m=JSON.parse(localStorage.getItem('racha_sync_meta_v2')||'null');const e=document.getElementById('racha-cloud-copy');if(e)e.textContent=m&&m.lastBackupAt?('Última cópia completa na nuvem: '+new Date(m.lastBackupAt).toLocaleString('pt-BR')):'Cópia completa na nuvem ainda não enviada.'}catch(e){}}
+window.addEventListener('load',()=>{const wait=()=>{if(!document.getElementById('racha-integration'))return setTimeout(wait,30);show();fillCloudCopy()};wait()});
 })();
 
 (function(root){'use strict';
