@@ -12,7 +12,7 @@ var WORKER='https://racha-sync-test.witsson.workers.dev';
 var HAD_RECORDS_AT_BOOT;
 try{HAD_RECORDS_AT_BOOT=!!localStorage.getItem(REC)}catch(e){HAD_RECORDS_AT_BOOT=true}
 var enc=new TextEncoder();
-function b64(bytes){var s='';for(var i=0;i<bytes.length;i++)s+=String.fromCharCode(bytes[i]);return btoa(s).replaceAll('+','-').replaceAll('/','_').replace(/=+$/,'')}
+function b64(bytes){bytes=new Uint8Array(bytes);var s='';for(var i=0;i<bytes.length;i++)s+=String.fromCharCode(bytes[i]);return btoa(s).replaceAll('+','-').replaceAll('/','_').replace(/=+$/,'')}
 function sha256hex(str){return crypto.subtle.digest('SHA-256',enc.encode(str)).then(function(b){return Array.from(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,'0')}).join('')})}
 function meta(){var m=null;try{m=JSON.parse(localStorage.getItem(META)||'null')}catch(e){}if(!m||typeof m.rev!=='number')m={rev:1,lastHash:'',lastPushAt:0};return m}
 function saveMeta(m){try{localStorage.setItem(META,JSON.stringify(m))}catch(e){}}
